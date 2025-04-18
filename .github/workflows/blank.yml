@@ -18,7 +18,6 @@ jobs:
         run: |
           mkdir -p vosk_models_small
           cd vosk_models_small
-
           declare -A models=(
             ["en"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
             ["en-in"]="https://alphacephei.com/vosk/models/vosk-model-small-en-in-0.4.zip"
@@ -38,12 +37,10 @@ jobs:
             ["de-alt"]="https://alphacephei.com/vosk/models/vosk-model-small-de-zamia-0.3.zip"
             ["en-zamia"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-zamia-0.5.zip"
           )
-
           for lang in "${!models[@]}"; do
             url="${models[$lang]}"
             zip_file=$(basename "$url")
             folder="${zip_file%.zip}"
-
             echo "Downloading $zip_file..."
             curl -LO "$url"
             unzip -q "$zip_file"
@@ -56,5 +53,4 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add vosk_models_small
           git commit -m "Add all small Vosk models"
-          git push
-
+          git push https://Fiinex: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@github.com/Fiinex/langs.git
