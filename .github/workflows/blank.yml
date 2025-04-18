@@ -1,16 +1,16 @@
-name: Download Vosk Models
+name: Download and Commit Vosk Models Individually
 
 on:
   workflow_dispatch:
 
 jobs:
-  download-and-commit:
+  process-models:
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -18,12 +18,13 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y unzip curl
 
-      - name: Download Vosk models
+      - name: Download and extract models
         run: |
           mkdir -p vosk_models_small
           cd vosk_models_small
+          
           declare -A models=(
-            ["en"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+             ["en"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
             ["en-in"]="https://alphacephei.com/vosk/models/vosk-model-small-en-in-0.4.zip"
             ["cn"]="https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip"
             ["ru"]="https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip"
@@ -41,24 +42,52 @@ jobs:
             ["de-alt"]="https://alphacephei.com/vosk/models/vosk-model-small-de-zamia-0.3.zip"
             ["en-zamia"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-zamia-0.5.zip"
           )
+
           for lang in "${!models[@]}"; do
             url="${models[$lang]}"
             zip_file=$(basename "$url")
             folder="${zip_file%.zip}"
             
-            # Remove existing folder if it exists
+            echo "Processing $lang model..."
             [ -d "$folder" ] && rm -rf "$folder"
             
-            echo "Downloading $zip_file..."
-            curl -LO "$url"
-            unzip -q -o "$zip_file"  # -o = overwrite without prompt
+            curl -LO "$url" || continue
+            unzip -q -o "$zip_file"
             rm "$zip_file"
           done
 
-      - name: Commit and push
+      - name: Commit files individually
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
-          git add vosk_models_small
-          git commit -m "Update Vosk models $(date +'%Y-%m-%d')"
-          git push
+          
+          # Process files one by one
+          while IFS= read -r -d '' file; do
+            file_size=$(stat -c %s "$file")
+            
+            if (( file_size < 100000000 )); then
+              git add "$file"
+              if git commit -m "Add model file: $(basename "$file")"; then
+                echo "✅ Successfully committed $file"
+                if ! git push; then
+                  echo "⚠️ Push failed for $file, retrying..."
+                  sleep 5
+                  git push
+                fi
+              else
+                echo "⚠️ Nothing new to commit for $file"
+              fi
+            else
+              echo "🚫 Skipping large file: $file (${file_size} bytes)"
+            fi
+          done < <(find vosk_models_small -type f -print0)
+
+      - name: Report results
+        run: |
+          echo "=== Commit Summary ==="
+          echo "Successfully committed files:"
+          find vosk_models_small -type f -size -100M -exec ls -lh {} \;
+          
+          echo ""
+          echo "Skipped large files:"
+          find vosk_models_small -type f -size +100M -exec ls -lh {} \;
