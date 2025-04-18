@@ -1,0 +1,60 @@
+name: Download Vosk Models
+
+on:
+  workflow_dispatch:  # Trigger manually from GitHub
+
+jobs:
+  download-and-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install unzip and curl
+        run: sudo apt-get update && sudo apt-get install -y unzip curl
+
+      - name: Download Vosk models
+        run: |
+          mkdir -p vosk_models_small
+          cd vosk_models_small
+
+          declare -A models=(
+            ["en"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+            ["en-in"]="https://alphacephei.com/vosk/models/vosk-model-small-en-in-0.4.zip"
+            ["cn"]="https://alphacephei.com/vosk/models/vosk-model-small-cn-0.22.zip"
+            ["ru"]="https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip"
+            ["fr"]="https://alphacephei.com/vosk/models/vosk-model-small-fr-0.22.zip"
+            ["de"]="https://alphacephei.com/vosk/models/vosk-model-small-de-0.15.zip"
+            ["es"]="https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip"
+            ["pt"]="https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip"
+            ["tr"]="https://alphacephei.com/vosk/models/vosk-model-small-tr-0.3.zip"
+            ["vn"]="https://alphacephei.com/vosk/models/vosk-model-small-vn-0.4.zip"
+            ["it"]="https://alphacephei.com/vosk/models/vosk-model-small-it-0.22.zip"
+            ["nl"]="https://alphacephei.com/vosk/models/vosk-model-small-nl-0.22.zip"
+            ["ca"]="https://alphacephei.com/vosk/models/vosk-model-small-ca-0.4.zip"
+            ["ar-tn"]="https://alphacephei.com/vosk/models/vosk-model-small-ar-tn-0.1-linto.zip"
+            ["fr-alt"]="https://alphacephei.com/vosk/models/vosk-model-small-fr-pguyot-0.3.zip"
+            ["de-alt"]="https://alphacephei.com/vosk/models/vosk-model-small-de-zamia-0.3.zip"
+            ["en-zamia"]="https://alphacephei.com/vosk/models/vosk-model-small-en-us-zamia-0.5.zip"
+          )
+
+          for lang in "${!models[@]}"; do
+            url="${models[$lang]}"
+            zip_file=$(basename "$url")
+            folder="${zip_file%.zip}"
+
+            echo "Downloading $zip_file..."
+            curl -LO "$url"
+            unzip -q "$zip_file"
+            rm "$zip_file"
+          done
+
+      - name: Commit and push models
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add vosk_models_small
+          git commit -m "Add all small Vosk models"
+          git push
+
